@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/quran-db", "crates/quran-api", "crates/quran-mcp"]
+members = ["crates/quran-db", "crates/quran-api", "crates/quran-mcp", "crates/quran-import"]
 resolver = "2"
 
 [workspace.dependencies]
@@ -13,3 +13,5 @@ thiserror = "1"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 rmcp = { version = "1.4", features = ["server", "macros", "transport-io"] }
+clap = { version = "4", features = ["derive"] }
+indicatif = "0.17"
