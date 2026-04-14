@@ -1,0 +1,21 @@
+[package]
+name = "quran-api"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "quran-api"
+path = "src/main.rs"
+
+[dependencies]
+quran-db = { path = "../quran-db" }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sqlx = { workspace = true }
+axum = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+tower-http = { version = "0.5", features = ["cors", "trace"] }
