@@ -1,10 +1,12 @@
 pub mod db;
 pub mod models;
 pub mod queries;
+pub mod text;
 
 pub use db::{connect, run_migrations};
 pub use models::{Morphology, Ontology, Word};
 pub use sqlx::SqlitePool;
+pub use text::strip_diacritics;
 
 #[cfg(test)]
 mod tests {
@@ -39,9 +41,10 @@ mod tests {
         let records: Vec<SeedRecord> = serde_json::from_str(seed_json).expect("valid seed JSON");
 
         for r in &records {
+            let lemma_bare = crate::text::strip_diacritics(&r.lemma);
             sqlx::query(
-                "INSERT OR IGNORE INTO words (surah, ayah, position, arabic, transliteration, root, lemma)
-                 VALUES (?, ?, ?, ?, ?, ?, ?)",
+                "INSERT OR IGNORE INTO words (surah, ayah, position, arabic, transliteration, root, lemma, lemma_bare)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             )
             .bind(r.surah)
             .bind(r.ayah)
@@ -50,6 +53,7 @@ mod tests {
             .bind(&r.transliteration)
             .bind(&r.root)
             .bind(&r.lemma)
+            .bind(&lemma_bare)
             .execute(pool)
             .await
             .expect("insert word");
@@ -144,15 +148,36 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_search_words_by_field() {
+    async fn test_search_root_field() {
         let pool = test_pool().await;
         seed(&pool).await;
-        // Arabic root stored without diacritics — LIKE match is reliable
         let results = queries::search_words(&pool, "حمد", "root").await.expect("search by root");
         assert!(!results.is_empty(), "expected words with root حمد");
-        // Lemma search: use the exact unvoweled base that SQLite LIKE can match
-        // Lemmas in the seed carry diacritics; searching the lemma of رَبّ via root path is tested above.
-        // Verify the lemma branch compiles and runs without panicking (empty result is ok for unknown lemma).
-        let _ = queries::search_words(&pool, "nonexistent", "lemma").await.expect("lemma branch runs");
+    }
+
+    #[tokio::test]
+    async fn test_search_lemma_bare_diacritic_insensitive() {
+        let pool = test_pool().await;
+        seed(&pool).await;
+
+        // "رب" (no diacritics) must match lemma "رَبّ" (with fatha + shadda).
+        // This was the original blocker — diacritics in stored lemmas broke LIKE.
+        let rabb = queries::search_words(&pool, "رب", "lemma").await.expect("lemma search رب");
+        assert!(
+            !rabb.is_empty(),
+            "bare 'رب' should match vowelized lemma 'رَبّ' via lemma_bare column"
+        );
+        assert!(rabb.iter().any(|w| w.lemma == "رَبّ"));
+
+        // "الله" (with regular alif) must match "ٱللَّه" (alef wasla + shadda + kasra).
+        let allah = queries::search_words(&pool, "الله", "lemma").await.expect("lemma search الله");
+        assert!(
+            !allah.is_empty(),
+            "bare 'الله' should match wasla-form 'ٱللَّه' via lemma_bare normalization"
+        );
+
+        // "رحمان" must match "رَحْمَان".
+        let rahman = queries::search_words(&pool, "رحمان", "lemma").await.expect("lemma search رحمان");
+        assert!(!rahman.is_empty(), "bare 'رحمان' should match 'رَحْمَان'");
     }
 }

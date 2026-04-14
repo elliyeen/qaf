@@ -1,4 +1,5 @@
 use crate::models::{Morphology, Ontology, Word};
+use crate::text::strip_diacritics;
 use anyhow::{Context, Result};
 use sqlx::SqlitePool;
 
@@ -46,23 +47,41 @@ pub async fn words_in_surah(pool: &SqlitePool, surah: i32) -> Result<Vec<Word>> 
 }
 
 /// Search words by root or lemma substring.
+///
+/// Lemma search is diacritic-insensitive: both the stored value and the
+/// caller's query are stripped of harakat via `text::strip_diacritics`
+/// before the LIKE comparison.  Root values are stored without diacritics
+/// already, so root search works as-is.
 pub async fn search_words(pool: &SqlitePool, query: &str, field: &str) -> Result<Vec<Word>> {
-    let pattern = format!("%{}%", query);
-    let sql = match field {
+    match field {
         "lemma" => {
-            "SELECT id, surah, ayah, position, arabic, transliteration, root, lemma
-             FROM words WHERE lemma LIKE ? ORDER BY surah, ayah, position"
+            // Strip diacritics from both the stored column (lemma_bare) and the query.
+            let bare_query = strip_diacritics(query);
+            let pattern = format!("%{}%", bare_query);
+            sqlx::query_as::<_, Word>(
+                "SELECT id, surah, ayah, position, arabic, transliteration, root, lemma
+                 FROM words WHERE lemma_bare LIKE ? ORDER BY surah, ayah, position",
+            )
+            .bind(pattern)
+            .fetch_all(pool)
+            .await
+            .with_context(|| format!("search_words(lemma) failed: q={}", query))
         }
         _ => {
-            "SELECT id, surah, ayah, position, arabic, transliteration, root, lemma
-             FROM words WHERE root LIKE ? ORDER BY surah, ayah, position"
+            // Root field: stored without diacritics. Strip query anyway so
+            // callers can pass "رَحْم" and still match stored root "رحم".
+            let bare_query = strip_diacritics(query);
+            let pattern = format!("%{}%", bare_query);
+            sqlx::query_as::<_, Word>(
+                "SELECT id, surah, ayah, position, arabic, transliteration, root, lemma
+                 FROM words WHERE root LIKE ? ORDER BY surah, ayah, position",
+            )
+            .bind(pattern)
+            .fetch_all(pool)
+            .await
+            .with_context(|| format!("search_words(root) failed: q={}", query))
         }
-    };
-    sqlx::query_as::<_, Word>(sql)
-        .bind(pattern)
-        .fetch_all(pool)
-        .await
-        .with_context(|| format!("search_words failed: field={} q={}", field, query))
+    }
 }
 
 /// Get morphological data for a word by its id.
