@@ -12,3 +12,7 @@ data/audio/**/*.ogg
 
 # Large source data — re-downloadable
 data/import/quran-morphology.txt
+
+# Generated release reports (archive is committed, live reports are not)
+reports/*.md
+reports/archive/
