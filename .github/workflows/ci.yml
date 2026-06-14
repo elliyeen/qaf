@@ -1,10 +1,10 @@
 name: CI
 
-"on":
+on:
   push:
-    branches: [master, main]
+    branches: ["master", "main"]
   pull_request:
-    branches: [master, main]
+    branches: ["master", "main"]
 
 env:
   CARGO_TERM_COLOR: always
@@ -15,14 +15,16 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@stable
+      - name: Install Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
+          toolchain: stable
           components: rustfmt, clippy
 
-      - name: Cache cargo registry
+      - name: Cache
         uses: actions/cache@v4
         with:
           path: |
@@ -32,13 +34,13 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-
 
-      - name: Check formatting
+      - name: Format
         run: cargo fmt --check
 
-      - name: Clippy (deny warnings)
+      - name: Clippy
         run: cargo clippy --workspace -- -D warnings
 
-      - name: Run tests
+      - name: Test
         run: cargo test --workspace
         env:
           DATABASE_URL: sqlite::memory:
