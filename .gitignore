@@ -4,3 +4,11 @@
 *.db-wal
 .env
 .DS_Store
+
+# Audio binaries — stored in R2, not git
+data/audio/**/*.mp3
+data/audio/**/*.m4a
+data/audio/**/*.ogg
+
+# Large source data — re-downloadable
+data/import/quran-morphology.txt

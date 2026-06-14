@@ -1,7 +1,3 @@
-mod errors;
-mod handlers;
-mod routes;
-
 use anyhow::Result;
 use quran_db::{connect, run_migrations};
 use std::net::SocketAddr;
@@ -26,7 +22,7 @@ async fn main() -> Result<()> {
     let pool = connect(&database_url).await?;
     run_migrations(&pool).await?;
 
-    let app = routes::build_router(pool);
+    let app = quran_api::build_router(pool);
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
     info!("quran-api listening on {}", addr);
 

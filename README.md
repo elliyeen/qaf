@@ -2,55 +2,89 @@
 
 Word-level Quranic data access layer — Rust workspace.
 
-```
-quran-db   SQLite queries, models, migrations
-quran-api  Axum REST API
-quran-mcp  MCP server (rmcp 1.4 · stdio transport)
-```
+---
+
+## Crates
+
+| Crate | Path | Purpose |
+|-------|------|---------|
+| `quran-db` | `crates/quran-db` | SQLite data layer — words, morphology, ontology, tadabbur, translations, irab, structure, recitations. |
+| `quran-api` | `crates/quran-api` | REST API (Axum, port 3000). |
+| `quran-mcp` | `crates/quran-mcp` | MCP server (rmcp 1.4, stdio transport) — 13 tools for AI assistant integration. |
+| `quran-import` | `crates/quran-import` | CLI — imports QAC morphology file and seeds structural/recitation data. |
+| `quran-tafsir-import` | `crates/quran-tafsir-import` | CLI — imports tafsir from the quran.com API. |
+| `qaf-core` | `crates/qaf-core` | Shared types (`Surah`, `Ayah`, `Page`, `Juz`) and `QafError`. |
+
+---
 
 ## Quick Start
 
 ```bash
-# 1. Apply migrations
+# Apply migrations
 sqlx migrate run --database-url sqlite:qaf.db
 
-# 2. Start the REST API
-DATABASE_URL=sqlite:qaf.db cargo run -p quran-api
+# REST API (port 3000)
+DATABASE_URL=sqlite:qaf.db PORT=3000 cargo run -p quran-api
 
-# 3. Start the MCP server
+# MCP server (stdio)
 DATABASE_URL=sqlite:qaf.db cargo run -p quran-mcp
 ```
 
-## REST Endpoints
+---
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/word/:surah/:ayah/:pos` | Single word |
-| GET | `/root/:root` | All words sharing a root |
-| GET | `/morphology/:word_id` | POS + features |
-| GET | `/search?q=…&field=root\|lemma` | Search |
-| GET | `/surah/:num/words` | All words in a surah |
-| GET | `/ontology/:root` | Semantic domain + derivatives |
-| GET | `/health` | `{ "status": "ok" }` |
+## Build
 
-## MCP Tools
+```bash
+cargo build --workspace
+```
 
-| Tool | Description |
-|------|-------------|
-| `get_word(surah, ayah, position)` | Fetch a single Quranic word with full morphological data |
-| `search_root(root_arabic)` | Find all words in the Quran sharing a given Arabic root |
-| `get_morphology(word_id)` | Get part-of-speech and grammatical features for a word |
-| `get_ontology(root_arabic)` | Get semantic domain, derivatives, and scholar notes for a root |
+---
 
-## Configure in Claude Desktop
+## Test
+
+```bash
+# All tests
+cargo test --workspace
+
+# Single crate
+cargo test -p quran-db
+```
+
+---
+
+## Lint
+
+```bash
+cargo clippy --workspace -- -D warnings
+cargo fmt --check
+```
+
+---
+
+## Database
+
+- File: `qaf.db` (SQLite, not committed)
+- Migrations: `migrations/` — apply via `sqlx migrate run` or `sqlite3 qaf.db < migrations/XXXX.sql`
+- Test databases: `sqlite::memory:` with migrations applied on startup
+
+---
+
+## MCP — Claude Desktop
 
 ```json
 {
   "mcpServers": {
-    "quran": {
-      "command": "/path/to/quran-mcp",
-      "env": { "DATABASE_URL": "sqlite:/path/to/qaf.db" }
+    "qaf": {
+      "command": "/path/to/qaf-mcp",
+      "env": { "DATABASE_URL": "sqlite:/path/to/qaf.db?mode=rwc" }
     }
   }
 }
 ```
+
+---
+
+## Standard
+
+> "Indeed, Allah loves that when any of you does a job, he does it with itqān (perfection)."
+> — al-Bayhaqī, Shu'ab al-Īmān no. 5312, graded ḥasan by al-Albānī (al-Silsilah al-Ṣaḥīḥah no. 1113)

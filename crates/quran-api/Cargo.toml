@@ -3,6 +3,10 @@ name = "quran-api"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+name = "quran_api"
+path = "src/lib.rs"
+
 [[bin]]
 name = "quran-api"
 path = "src/main.rs"
@@ -19,3 +23,7 @@ thiserror = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 tower-http = { version = "0.5", features = ["cors", "trace"] }
+
+[dev-dependencies]
+tower = { version = "0.4", features = ["util"] }
+http-body-util = "0.1"

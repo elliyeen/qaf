@@ -1,0 +1,9 @@
+[package]
+name = "qaf-core"
+version = "0.1.0"
+edition = "2021"
+description = "Shared types, errors, and utilities for the Qaf workspace"
+
+[dependencies]
+serde = { workspace = true }
+thiserror = { workspace = true }

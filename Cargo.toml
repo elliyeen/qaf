@@ -1,5 +1,12 @@
 [workspace]
-members = ["crates/quran-db", "crates/quran-api", "crates/quran-mcp", "crates/quran-import"]
+members = [
+    "crates/quran-db",
+    "crates/quran-api",
+    "crates/quran-mcp",
+    "crates/quran-import",
+    "crates/quran-tafsir-import",
+    "crates/qaf-core",
+]
 resolver = "2"
 
 [workspace.dependencies]
@@ -15,3 +22,5 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 rmcp = { version = "1.4", features = ["server", "macros", "transport-io"] }
 clap = { version = "4", features = ["derive"] }
 indicatif = "0.17"
+reqwest = { version = "0.12", features = ["json"] }
+quick-xml = { version = "0.36", features = ["serialize"] }

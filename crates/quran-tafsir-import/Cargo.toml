@@ -1,27 +1,16 @@
 [package]
-name = "quran-import"
+name = "quran-tafsir-import"
 version = "0.1.0"
 edition = "2021"
 
 [[bin]]
-name = "quran-import"
+name = "quran-tafsir-import"
 path = "src/main.rs"
-
-[[bin]]
-name = "seed-structure"
-path = "src/bin/seed_structure.rs"
-
-[[bin]]
-name = "seed-recitations"
-path = "src/bin/seed_recitations.rs"
-
-[[bin]]
-name = "seed-tajweed"
-path = "src/bin/seed_tajweed.rs"
 
 [dependencies]
 quran-db = { path = "../quran-db" }
 tokio = { workspace = true }
+serde = { workspace = true }
 serde_json = { workspace = true }
 sqlx = { workspace = true }
 anyhow = { workspace = true }
@@ -30,4 +19,3 @@ tracing-subscriber = { workspace = true }
 clap = { workspace = true }
 indicatif = { workspace = true }
 reqwest = { workspace = true }
-quick-xml = { workspace = true }
