@@ -4,7 +4,7 @@ use axum::{
     http::StatusCode,
     Json,
 };
-use quran_db::{queries, validate_ref, validate_surah, VALID_IRAB_CASE_MARKERS, VALID_IRAB_CASE_SIGNS, VALID_IRAB_FUNCTIONS, VALID_IRAB_WORD_TYPES};
+use quran_db::{queries, validate_ref, validate_surah, list_recitations, recitation_ayah, VALID_IRAB_CASE_MARKERS, VALID_IRAB_CASE_SIGNS, VALID_IRAB_FUNCTIONS, VALID_IRAB_WORD_TYPES};
 use serde::Deserialize;
 use serde_json::{json, Value};
 use sqlx::SqlitePool;
@@ -700,4 +700,79 @@ pub async fn create_translation(
     .map_err(|e| ApiError::Internal(e.into()))?;
     let v = serde_json::to_value(txn).map_err(|e| ApiError::Internal(e.into()))?;
     Ok((StatusCode::CREATED, Json(v)))
+}
+
+// ── Recitation routes ─────────────────────────────────────────────────────────
+
+/// GET /recitations
+/// Returns the full recitation catalogue (all riwāyāt registered in the DB).
+pub async fn get_recitations(
+    State(pool): State<SqlitePool>,
+) -> Result<Json<Value>, ApiError> {
+    let recs = list_recitations(&pool)
+        .await
+        .map_err(ApiError::Internal)?;
+    to_json(recs)
+}
+
+/// GET /ayah/:surah/:ayah/recitation/:name
+///
+/// Returns the ayah text in the requested recitation, together with its
+/// tajweed span annotations and the recitation's colour map.
+///
+/// Response shape:
+/// ```json
+/// {
+///   "surah": 1,
+///   "ayah": 1,
+///   "recitation": { "id": 1, "name": "hafs", "rawi": "…", "qari": "…", "description": "…" },
+///   "text": "بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ",
+///   "source": "quranic-corpus/seed",
+///   "spans": [
+///     { "start_index": 22, "length": 3, "rule": "madd_tabii", "note": null },
+///     …
+///   ],
+///   "colors": {
+///     "ghunnah":  "#06A94D",
+///     "madd_tabii": "#1F6CB0",
+///     …
+///   }
+/// }
+/// ```
+///
+/// 400 if `:surah` / `:ayah` are out of range.
+/// 404 if the recitation name is unknown or its text has not been imported yet.
+pub async fn get_recitation_ayah(
+    State(pool): State<SqlitePool>,
+    Path((surah, ayah, recitation_name)): Path<(i32, i32, String)>,
+) -> Result<Json<Value>, ApiError> {
+    check_ref(surah, ayah)?;
+
+    let result = recitation_ayah(&pool, surah, ayah, &recitation_name)
+        .await
+        .map_err(ApiError::Internal)?;
+
+    match result {
+        None => Err(ApiError::NotFound(format!(
+            "recitation '{}' not found or no text imported for {}:{}",
+            recitation_name, surah, ayah
+        ))),
+        Some((rec, text, source, spans, colors)) => {
+            // Convert the flat (rule, color_hex) pairs into a JSON object.
+            let colors_obj: serde_json::Map<String, Value> = colors
+                .into_iter()
+                .map(|(rule, hex)| (rule, Value::String(hex)))
+                .collect();
+
+            to_json(json!({
+                "surah":       surah,
+                "ayah":        ayah,
+                "recitation":  rec,
+                "text":        text,
+                "source":      source,
+                "spans":       spans,
+                "colors":      colors_obj,
+            }))
+        }
+    }
 }

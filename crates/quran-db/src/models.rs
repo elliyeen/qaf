@@ -287,6 +287,34 @@ pub struct Ayah {
 }
 
 /// Full contemplation context for a single ayah — the shape returned by
+// ─── Recitation / Tajweed layer ──────────────────────────────────────────────
+
+/// A named Quranic recitation variant (riwāyah / qirāʾah).
+/// Stored in the `recitations` catalogue table.
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
+pub struct Recitation {
+    pub id: i64,
+    /// Stable ASCII slug, e.g. `"hafs"`, `"khalaf"`.
+    pub name: String,
+    /// Full name of the transmitter (rāwī), in Arabic.
+    pub rawi: String,
+    /// Full name of the reciter (qāriʾ), in Arabic.
+    pub qari: String,
+    /// Optional scholarly notes or source reference.
+    pub description: Option<String>,
+}
+
+/// A single tajweed rule annotation on one character range of a recitation text.
+/// `start_index` and `length` are 0-based Unicode character (codepoint) offsets
+/// into `recitation_texts.text` — not byte offsets.
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
+pub struct TajweedSpan {
+    pub start_index: i64,
+    pub length: i64,
+    pub rule: String,
+    pub note: Option<String>,
+}
+
 /// `queries::tadabbur_page`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TadabburPage {

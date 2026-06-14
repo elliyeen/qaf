@@ -49,6 +49,12 @@ pub fn build_router(pool: SqlitePool) -> Router {
             "/tadabbur/:surah/:ayah/translations",
             get(handlers::list_translations).post(handlers::create_translation),
         )
+        // ── Recitations ───────────────────────────────────────────────────────
+        .route("/recitations", get(handlers::get_recitations))
+        .route(
+            "/ayah/:surah/:ayah/recitation/:name",
+            get(handlers::get_recitation_ayah),
+        )
         // ── Irab ─────────────────────────────────────────────────────────────
         // GET by word_id / ayah; POST by word coordinate; PUT+DELETE by irab id.
         .route("/irab/:word_id", get(handlers::get_irab))

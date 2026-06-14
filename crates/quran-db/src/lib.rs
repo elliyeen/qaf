@@ -4,8 +4,9 @@ pub mod queries;
 pub mod text;
 
 pub use db::{connect, run_migrations};
-pub use models::{Ayah, AyahTranslation, CrossReference, HadithCrossRef, Juz, Morphology, MushafPage, Ontology, QuranCrossRef, Reflection, Surah, TadabburPage, Theme, Word, WordDetail, WordIrab, WordSegment, WordToken};
+pub use models::{Ayah, AyahTranslation, CrossReference, HadithCrossRef, Juz, Morphology, MushafPage, Ontology, QuranCrossRef, Recitation, Reflection, Surah, TadabburPage, TajweedSpan, Theme, Word, WordDetail, WordIrab, WordSegment, WordToken};
 pub use queries::{validate_ref, validate_surah, AYAH_COUNTS, VALID_IRAB_CASE_MARKERS, VALID_IRAB_CASE_SIGNS, VALID_IRAB_FUNCTIONS, VALID_IRAB_WORD_TYPES};
+pub use queries::{list_recitations, recitation_ayah};
 pub use queries::{ayahs_for_surah, get_ayah, get_juz, get_page, get_surah, insert_ayah, insert_juz, insert_page, insert_surah};
 pub use queries::{get_token, get_token_by_ref, insert_segment, parse_token_ref, segment_ref, segments_for_token, token_ref};
 pub use sqlx::SqlitePool;

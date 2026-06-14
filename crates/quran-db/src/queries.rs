@@ -1,4 +1,4 @@
-use crate::models::{Ayah, AyahTranslation, HadithCrossRef, Juz, Morphology, MushafPage, Ontology, QuranCrossRef, Reflection, Surah, TadabburPage, Theme, Word, WordDetail, WordIrab, WordSegment, WordToken};
+use crate::models::{Ayah, AyahTranslation, HadithCrossRef, Juz, Morphology, MushafPage, Ontology, QuranCrossRef, Recitation, Reflection, Surah, TadabburPage, TajweedSpan, Theme, Word, WordDetail, WordIrab, WordSegment, WordToken};
 use crate::text::strip_diacritics;
 use anyhow::{Context, Result};
 use sqlx::SqlitePool;
@@ -1188,4 +1188,95 @@ pub async fn insert_segment(
         return Ok(None);
     }
     Ok(Some(result.last_insert_rowid()))
+}
+
+// ─── Recitation / Tajweed queries ────────────────────────────────────────────
+
+/// Return all entries in the recitation catalogue, ordered by id.
+pub async fn list_recitations(pool: &SqlitePool) -> Result<Vec<Recitation>> {
+    sqlx::query_as::<_, Recitation>(
+        "SELECT id, name, rawi, qari, description FROM recitations ORDER BY id",
+    )
+    .fetch_all(pool)
+    .await
+    .context("list_recitations")
+}
+
+/// Fetch the text and tajweed spans for a single ayah in a named recitation.
+///
+/// Returns `Some((recitation, text, source, spans, colors))` where:
+/// - `recitation` — catalogue entry for this riwāyah.
+/// - `text`       — ayah text in that recitation's orthography (with tashkeel).
+/// - `source`     — provenance label (e.g. `"tanzil.net"`, `"quranic-corpus/seed"`).
+/// - `spans`      — all tajweed annotations for this text, ordered by `start_index`.
+/// - `colors`     — full `(rule, color_hex)` pairs for this recitation; the
+///                  renderer pre-loads this once rather than repeating colours in
+///                  every span.
+///
+/// Returns `None` when the recitation name is unknown **or** when no text has
+/// been imported for that (surah, ayah, recitation) combination yet.
+pub async fn recitation_ayah(
+    pool: &SqlitePool,
+    surah: i32,
+    ayah: i32,
+    recitation_name: &str,
+) -> Result<Option<(Recitation, String, Option<String>, Vec<TajweedSpan>, Vec<(String, String)>)>> {
+    // 1 — Catalogue lookup.
+    let rec: Option<Recitation> = sqlx::query_as(
+        "SELECT id, name, rawi, qari, description FROM recitations WHERE name = ?",
+    )
+    .bind(recitation_name)
+    .fetch_optional(pool)
+    .await
+    .with_context(|| format!("lookup recitation '{}'", recitation_name))?;
+
+    let rec = match rec {
+        Some(r) => r,
+        None => return Ok(None),
+    };
+
+    // 2 — Text row for this (recitation, surah, ayah).
+    let text_row: Option<(i64, String, Option<String>)> = sqlx::query_as(
+        "SELECT id, text, source
+         FROM recitation_texts
+         WHERE recitation_id = ? AND surah_id = ? AND ayah_number = ?",
+    )
+    .bind(rec.id)
+    .bind(surah)
+    .bind(ayah)
+    .fetch_optional(pool)
+    .await
+    .with_context(|| format!("recitation_texts {}:{} ({})", surah, ayah, recitation_name))?;
+
+    let (rt_id, text, source) = match text_row {
+        Some(row) => row,
+        None => return Ok(None),
+    };
+
+    // 3 — Tajweed spans, ordered for sequential rendering.
+    let spans: Vec<TajweedSpan> = sqlx::query_as(
+        "SELECT start_index, length, rule, note
+         FROM tajweed_spans
+         WHERE recitation_text_id = ?
+         ORDER BY start_index",
+    )
+    .bind(rt_id)
+    .fetch_all(pool)
+    .await
+    .with_context(|| format!("tajweed_spans rt_id={}", rt_id))?;
+
+    // 4 — Full colour map: all (rule → color_hex) for this recitation.
+    //     Loaded once; the renderer applies it without touching tajweed_spans again.
+    let colors: Vec<(String, String)> = sqlx::query_as(
+        "SELECT rule, color_hex
+         FROM tajweed_rule_colors
+         WHERE recitation_id = ?
+         ORDER BY rule",
+    )
+    .bind(rec.id)
+    .fetch_all(pool)
+    .await
+    .with_context(|| format!("tajweed_rule_colors recitation '{}'", recitation_name))?;
+
+    Ok(Some((rec, text, source, spans, colors)))
 }
